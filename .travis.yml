@@ -13,23 +13,20 @@ jobs:
     - stage: test
       script: sbt ^^1.1.2 test
 
-    - stage: deploy-sbt-0.13
+    - stage: deploy
       script: skip
       deploy:
-        provider: script
-        script: sbt ^^0.13.7 publish
-        on:
-          tags: true
-          repo: cobli/sbt-sentry
+        - provider: script
+          script: sbt ^^0.13.7 publish
+          on:
+            tags: true
+            repo: Cobliteam/sbt-sentry
 
-    - stage: deploy-sbt-1.x
-      script: skip
-      deploy:
-        provider: script
-        script: sbt ^^1.1.2 publish
-        on:
-          tags: true
-          repo: cobli/sbt-sentry
+        - provider: script
+          script: sbt ^^1.1.2 publish
+          on:
+            tags: true
+            repo: Cobliteam/sbt-sentry
 
 before_cache:
   - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
