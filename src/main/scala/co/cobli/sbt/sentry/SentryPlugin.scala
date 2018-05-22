@@ -22,7 +22,7 @@ object SentryPlugin extends AutoPlugin {
   val autoImport = Keys
   import autoImport._
 
-  private val supportedArchs = Seq("x86", "x86_64")
+  private val supportedArchs = Seq("i686", "x86_64")
 
   private def agentFileName(arch: String) =
     s"libsentry_agent_linux-${arch}.so"
@@ -79,7 +79,7 @@ object SentryPlugin extends AutoPlugin {
             |x86_64)
             |    addJava "-agentpath:$${app_home}/${libDir}/${agentFileName("x86_64")}"
             |*86)
-            |    addJava "-agentpath:$${app_home}/${libDir}/${agentFileName("x86")}"
+            |    addJava "-agentpath:$${app_home}/${libDir}/${agentFileName("i686")}"
             |*)
             |    echo "Warning: only x86 and x86_64 archs. are supported by the Sentry Java agent, ignoring it" >&2
             |esac
@@ -99,7 +99,7 @@ object SentryPlugin extends AutoPlugin {
       case ("Linux", "amd64") =>
         Some(agentPaths("x86_64"))
       case ("Linux", "x86") =>
-        Some(agentPaths("x86"))
+        Some(agentPaths("i686"))
       case _ =>
         val log = streams.value.log
         log.warn("Unsupported OS/arch combination for Sentry Java agent, ignoring it")
