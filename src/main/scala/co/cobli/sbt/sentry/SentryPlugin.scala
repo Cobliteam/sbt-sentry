@@ -176,7 +176,7 @@ object SentryPlugin extends AutoPlugin {
           val resources = (unmanagedResources in Compile).value
           resources.filter(_.getName == "logback.xml").head
         }
-      },
+      }
     ) ++ packagingSettings
   }
 }

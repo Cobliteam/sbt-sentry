@@ -11,11 +11,11 @@ crossSbtVersions := Vector("0.13.17", "1.1.2")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.4" % "provided")
 
-libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.1.0"
 libraryDependencies ++= {
   (pluginCrossBuild / sbtVersion).value match {
     case v if v.startsWith("1.") =>
-      Seq("org.scala-sbt" %% "io" % "1.0.0")
+      Seq("org.scala-sbt" %% "io" % "1.0.0",
+          "org.scala-lang.modules" %% "scala-xml" % "1.0.6")
     case _ =>
       Seq.empty
   }
