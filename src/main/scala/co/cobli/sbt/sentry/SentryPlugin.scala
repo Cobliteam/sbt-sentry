@@ -7,11 +7,12 @@ import com.typesafe.sbt.SbtNativePackager.Universal
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import sbt.Keys._
-import sbt.{IO => _, Using => _, _}
+import sbt._
 
-import co.cobli.sbt.Compat._
 
 object SentryPlugin extends AutoPlugin {
+  import co.cobli.sbt.Compat._
+
   object Keys {
     val sentryVersion = settingKey[String]("Version of the Sentry agent to use")
     val sentryJavaAgentPackageDir = settingKey[String]("Directory to store the Sentry Java agent in native packages")
