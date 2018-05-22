@@ -5,7 +5,7 @@ import java.net.{HttpURLConnection, URL}
 
 import com.typesafe.sbt.SbtNativePackager.Universal
 import com.typesafe.sbt.packager.Keys._
-import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
+import com.typesafe.sbt.packager.archetypes.scripts.BashStartScriptPlugin
 import sbt.Keys._
 import sbt._
 
@@ -16,7 +16,14 @@ object SentryPlugin extends AutoPlugin {
   object Keys {
     val sentryVersion = settingKey[String]("Version of the Sentry agent to use")
     val sentryJavaAgentPackageDir = settingKey[String]("Directory to store the Sentry Java agent in native packages")
-    val sentryJavaAgentPaths = taskKey[Map[String, File]]("Local paths of downloaded Sentry Java agent files")
+
+    val sentryLogbackEnabled = settingKey[Boolean]("Automatically modify the Logback configuration for Sentry")
+    val sentryLogbackConfigName = settingKey[String]("Name of the Logback config file to generate for Sentry")
+    val sentryLogbackSource = settingKey[Option[File]]("Custom Logback config file to use as a base for Sentry")
+
+    val sentryJavaAgentPaths = taskKey[Map[String, File]]("")
+    val sentryJavaAgentBashDefines = taskKey[Seq[String]]("")
+    val sentryLogbackSourcePath = taskKey[File]("")
   }
 
   val autoImport = Keys
@@ -72,18 +79,19 @@ object SentryPlugin extends AutoPlugin {
   private def normalizeBashPath(path: String, separator: Char = File.separatorChar): String =
     normalizePath(path, '/')
 
-  private def agentBashScriptDefines = Def.task[Seq[String]] {
-    val libDir = normalizeBashPath(sentryJavaAgentPackageDir.value)
+  private def agentBashScriptDefines(packageDir: String): Seq[String] = {
+    val dir = normalizeBashPath(packageDir)
 
-    Seq(s"""|case "$$(uname -m)" in
-            |x86_64)
-            |    addJava "-agentpath:$${app_home}/${libDir}/${agentFileName("x86_64")}"
-            |*86)
-            |    addJava "-agentpath:$${app_home}/${libDir}/${agentFileName("i686")}"
-            |*)
-            |    echo "Warning: only x86 and x86_64 archs. are supported by the Sentry Java agent, ignoring it" >&2
-            |esac
-            |""")
+    Seq(s"""
+      |case "$$(uname -m)" in
+      |x86_64)
+      |    addJava "-agentpath:$${app_home}/${dir}/${agentFileName("x86_64")}" ;;
+      |*86)
+      |    addJava "-agentpath:$${app_home}/${dir}/${agentFileName("i686")}" ;;
+      |*)
+      |    echo "Warning: only x86 and x86_64 archs. are supported by the Sentry Java agent, ignoring it" >&2
+      |esac
+      |""".stripMargin)
   }
 
   private def agentMappings = Def.task[Seq[(File, String)]] {
@@ -109,27 +117,66 @@ object SentryPlugin extends AutoPlugin {
     agentPath.map(path => s"-agentpath:${path}").toSeq
   }
 
-  private def packagingSettings = {
-    Seq(
-      mappings in Universal ++= agentMappings.value,
-      bashScriptExtraDefines ++= agentBashScriptDefines.value
-    )
+  private def generateLogbackConfig = Def.taskDyn[Seq[File]] {
+    val enabled = sentryLogbackEnabled.value
+    if (!enabled) {
+      Def.task {
+        Seq.empty
+      }
+    } else {
+      Def.task {
+        val sourceFile = sentryLogbackSourcePath.value
+        val destName = sentryLogbackConfigName.value
+        val destFile = (resourceManaged in Compile).value / "sentry-logback" / destName
+
+        try {
+          val content = LogbackConfig.addSentrySettings(sourceFile)
+          IO.write(destFile, content)
+        } catch { case e: Exception =>
+          sys.error(s"Failed to generate Sentry Logback config: ${e}")
+        }
+
+        Seq(destFile)
+      }
+    }
   }
 
-  override def requires = JavaAppPackaging
+  private def packagingSettings = Seq(
+    mappings in Universal ++= agentMappings.value,
+    bashScriptExtraDefines ++= sentryJavaAgentBashDefines.value
+  )
+
+  override def requires = BashStartScriptPlugin
 
   override def projectSettings = {
     Seq(
       sentryVersion := "1.7.4",
-      sentryJavaAgentPackageDir := s"sentry-agent/",
+      sentryJavaAgentPackageDir := s"sentry-agent",
+      sentryLogbackEnabled := false,
+      sentryLogbackConfigName := "logback.xml",
+      sentryLogbackSource := None,
+
+      libraryDependencies += "io.sentry" % "sentry-all" % sentryVersion.value,
+      javaOptions in run ++= agentOptions.value,
+      javaOptions in Test ++= agentOptions.value,
+      resourceGenerators in Compile += generateLogbackConfig.taskValue,
+
       sentryJavaAgentPaths := {
         val version = sentryVersion.value
         val destDir = (resourceManaged in Compile).value / "sentry-agent"
         downloadAgents(version, destDir)
       },
-      libraryDependencies += "io.sentry" % "sentry-all" % sentryVersion.value,
-      javaOptions in run ++= agentOptions.value,
-      javaOptions in Test ++= agentOptions.value
+      sentryJavaAgentBashDefines := {
+        val pkgDir = sentryJavaAgentPackageDir.value
+        agentBashScriptDefines(pkgDir)
+      },
+      sentryLogbackSourcePath := {
+        val customSource = sentryLogbackSource.value
+        customSource.getOrElse {
+          val resources = (unmanagedResources in Compile).value
+          resources.filter(_.getName == "logback.xml").head
+        }
+      },
     ) ++ packagingSettings
   }
 }
