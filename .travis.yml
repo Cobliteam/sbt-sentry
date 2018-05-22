@@ -1,32 +1,22 @@
 language: scala
-scala: 2.12.5
+scala: 2.12.6
 jdk: oraclejdk8
 
-sdist: trusty
+dist: trusty
 sudo: false
+
+env:
+  matrix:
+    - SBT_VERSION=0.13.17
+    - SBT_VERSION=1.1.2
+
+script: sbt ^^$SBT_VERSION test
 
 jobs:
   include:
-    - stage: test
-      script: sbt ^^0.13.7 test
-
-    - stage: test
-      script: sbt ^^1.1.2 test
-
     - stage: deploy
-      script: skip
-      deploy:
-        - provider: script
-          script: sbt ^^0.13.7 publish
-          on:
-            tags: true
-            repo: Cobliteam/sbt-sentry
-
-        - provider: script
-          script: sbt ^^1.1.2 publish
-          on:
-            tags: true
-            repo: Cobliteam/sbt-sentry
+      script: "sbt '^^0.13.17' publish '^^1.1.2' publish"
+      if: tag IS present AND repo = Cobliteam/sbt-sentry
 
 before_cache:
   - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
