@@ -6,10 +6,12 @@ Compile / scalacOptions ++= Seq("-deprecation")
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 sbtPlugin := true
-Global / scalaVersion := "2.12.6"
+scalaVersion := "2.12.6"
 crossSbtVersions := Vector("0.13.17", "1.1.2")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.4" % "provided")
+
+libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.1.0"
 libraryDependencies ++= {
   (pluginCrossBuild / sbtVersion).value match {
     case v if v.startsWith("1.") =>
@@ -19,6 +21,11 @@ libraryDependencies ++= {
   }
 }
 
+
 publishMavenStyle := true
 bintrayOrganization := Some("cobli")
 bintrayRepository := "sbt-plugins"
+
+scriptedDependencies := (ScriptedConf / publishLocal).value
+scriptedLaunchOpts += "-Dplugin.version=" + version.value
+scriptedBufferLog := false
