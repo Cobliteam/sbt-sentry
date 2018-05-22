@@ -1,0 +1,42 @@
+language: scala
+scala: 2.12.5
+jdk: oraclejdk8
+
+sdist: trusty
+sudo: false
+
+jobs:
+  include:
+    - stage: test
+      script: sbt ^^0.13.7 test scripted
+
+    - stage: test
+      script: sbt ^^1.1.2 test scripted
+
+    - stage: deploy-sbt-0.13
+      script: skip
+      deploy:
+        provider: script
+        script: sbt ^^0.13.7 publish
+        on:
+          tags: true
+          repo: cobli/sbt-sentry
+
+    - stage: deploy-sbt-1.x
+      script: skip
+      deploy:
+        provider: script
+        script: sbt ^^1.1.2 publish
+        on:
+          tags: true
+          repo: cobli/sbt-sentry
+
+before_cache:
+  - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt  -name "*.lock" -print -delete
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot
+    - $HOME/.coursier/cache
