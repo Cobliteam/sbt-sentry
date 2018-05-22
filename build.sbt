@@ -21,7 +21,6 @@ libraryDependencies ++= {
   }
 }
 
-
 publishMavenStyle := true
 bintrayOrganization := Some("cobli")
 bintrayRepository := "sbt-plugins"
