@@ -10,7 +10,7 @@ env:
     - SBT_VERSION=0.13.17
     - SBT_VERSION=1.1.2
 
-script: sbt ^^$SBT_VERSION test
+script: sbt ^^$SBT_VERSION scripted
 
 jobs:
   include:
