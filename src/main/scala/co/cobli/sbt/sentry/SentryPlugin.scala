@@ -26,12 +26,11 @@ object SentryPlugin extends AutoPlugin {
 
     val sentryLogbackEnabled = settingKey[Boolean]("Sentry: automatically modify Logback config in the classpath")
     val sentryLogbackConfigName = settingKey[String]("Sentry: name of the new Logback config to generate")
-    val sentryLogbackSource = settingKey[Option[File]]("Sentry: custom Logback config file to use as a base")
+    val sentryLogbackSource = taskKey[File]("Sentry: Logback config file to use as a base.")
 
     val sentryProperties = taskKey[Map[String, String]]("")
     val sentryJavaAgentPaths = taskKey[Map[String, File]]("")
     val sentryJavaAgentBashDefines = taskKey[Seq[String]]("")
-    val sentryLogbackSourcePath = taskKey[File]("")
   }
 
   val autoImport = Keys
@@ -125,28 +124,18 @@ object SentryPlugin extends AutoPlugin {
     agentPath.map(path => s"-agentpath:${path}").toSeq
   }
 
-  private def generateLogbackConfig = Def.taskDyn[Seq[File]] {
-    val enabled = sentryLogbackEnabled.value
-    if (!enabled) {
-      Def.task {
-        Seq.empty
-      }
-    } else {
-      Def.task {
-        val sourceFile = sentryLogbackSourcePath.value
-        val destName = sentryLogbackConfigName.value
-        val destFile = (resourceManaged in Compile).value / "sentry" / destName
+  private def generateLogbackConfig = Def.task[File] {
+    val sourceFile = sentryLogbackSource.value
+    val destFile = resourceManaged.value / "sentry" / sentryLogbackConfigName.value
 
-        try {
-          val content = LogbackConfig.addSentrySettings(sourceFile)
-          IO.write(destFile, content)
-        } catch { case e: Exception =>
-          sys.error(s"Failed to generate Sentry Logback config: ${e}")
-        }
-
-        Seq(destFile)
-      }
+    try {
+      val content = LogbackConfig.addSentrySettings(sourceFile)
+      IO.write(destFile, content)
+    } catch { case e: Exception =>
+      sys.error(s"Failed to generate Sentry Logback config: ${e}")
     }
+
+    destFile
   }
 
   private def defaultProperties = Def.task[Map[String, String]] {
@@ -157,8 +146,8 @@ object SentryPlugin extends AutoPlugin {
     )
   }
 
-  private def generatePropertiesFile = Def.task[Seq[File]] {
-    val destFile = (resourceManaged in Compile).value / "sentry" / "sentry.properties"
+  private def generatePropertiesFile = Def.task[File] {
+    val destFile = resourceManaged.value / "sentry" / "sentry.properties"
     val props = sentryProperties.value.foldLeft(new Properties) { case (p, (key, value)) =>
       p.put(key, value)
       p
@@ -171,7 +160,7 @@ object SentryPlugin extends AutoPlugin {
       sys.error(s"Failed to generate Sentry properties file: ${e}")
     }
 
-    Seq(destFile)
+    destFile
   }
 
   private def packagingSettings = Seq(
@@ -193,32 +182,37 @@ object SentryPlugin extends AutoPlugin {
 
       sentryLogbackEnabled := false,
       sentryLogbackConfigName := "logback.xml",
-      sentryLogbackSource := None,
+      sentryLogbackSource := {
+        val curResources = (resources in Compile).value
+        curResources.filter(_.getName == "logback.xml").headOption.getOrElse {
+          sys.error("Failed to find logback.xml in classpath. Specify the path manually by setting `sentryLogbackSource`.")
+        }
+      },
 
       libraryDependencies += "io.sentry" % "sentry-all" % sentryVersion.value,
-      javaOptions in run ++= agentOptions.value,
-      javaOptions in Test ++= agentOptions.value,
-      resourceGenerators in Compile += generateLogbackConfig.taskValue,
-      resourceGenerators in Compile += generatePropertiesFile.taskValue,
+
+      resourceGenerators in Compile += Def.taskDyn[Seq[File]] {
+        if (sentryLogbackEnabled.value) {
+          Def.task(Seq(generateLogbackConfig.value))
+        } else {
+          Def.task(Seq.empty)
+        }
+      }.taskValue,
+      resourceGenerators in Compile += Def.task {
+        Seq(generatePropertiesFile.value)
+      }.taskValue,
 
       sentryProperties := {
         defaultProperties.value ++ sentryExtraProperties.value
       },
       sentryJavaAgentPaths := {
         val version = sentryVersion.value
-        val destDir = (resourceManaged in Compile).value / "sentry-agent"
+        val destDir = (resourceManaged in Compile).value / "sentry"
         downloadAgents(version, destDir)
       },
       sentryJavaAgentBashDefines := {
         val pkgDir = sentryJavaAgentPackageDir.value
         agentBashScriptDefines(pkgDir)
-      },
-      sentryLogbackSourcePath := {
-        val customSource = sentryLogbackSource.value
-        customSource.getOrElse {
-          val resources = (unmanagedResources in Compile).value
-          resources.filter(_.getName == "logback.xml").head
-        }
       }
     ) ++ packagingSettings
   }
