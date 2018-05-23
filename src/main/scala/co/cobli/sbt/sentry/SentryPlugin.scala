@@ -2,6 +2,7 @@ package co.cobli.sbt.sentry
 
 import java.io.{File, InputStream}
 import java.net.{HttpURLConnection, URL}
+import java.util.Properties
 
 import com.typesafe.sbt.SbtNativePackager.Universal
 import com.typesafe.sbt.packager.Keys._
@@ -14,13 +15,20 @@ object SentryPlugin extends AutoPlugin {
   import co.cobli.sbt.Compat._
 
   object Keys {
-    val sentryVersion = settingKey[String]("Version of the Sentry agent to use")
-    val sentryJavaAgentPackageDir = settingKey[String]("Directory to store the Sentry Java agent in native packages")
+    val sentryVersion = settingKey[String]("Sentry: version of the agent and libs to use")
 
-    val sentryLogbackEnabled = settingKey[Boolean]("Automatically modify the Logback configuration for Sentry")
-    val sentryLogbackConfigName = settingKey[String]("Name of the Logback config file to generate for Sentry")
-    val sentryLogbackSource = settingKey[Option[File]]("Custom Logback config file to use as a base for Sentry")
+    val sentryAppRelease = settingKey[String]("Sentry: release to store in properties file")
+    val sentryAppDist = settingKey[String]("Sentry: dist to store in properties file")
+    val sentryAppPackages = settingKey[Seq[String]]("Sentry: list of app packages to store in properties file")
+    val sentryExtraProperties = settingKey[Map[String ,String]]("Sentry: values to add to sentry.properties resource")
 
+    val sentryJavaAgentPackageDir = settingKey[String]("Sentry: directory to store the Java agent files when packaging")
+
+    val sentryLogbackEnabled = settingKey[Boolean]("Sentry: automatically modify Logback config in the classpath")
+    val sentryLogbackConfigName = settingKey[String]("Sentry: name of the new Logback config to generate")
+    val sentryLogbackSource = settingKey[Option[File]]("Sentry: custom Logback config file to use as a base")
+
+    val sentryProperties = taskKey[Map[String, String]]("")
     val sentryJavaAgentPaths = taskKey[Map[String, File]]("")
     val sentryJavaAgentBashDefines = taskKey[Seq[String]]("")
     val sentryLogbackSourcePath = taskKey[File]("")
@@ -127,7 +135,7 @@ object SentryPlugin extends AutoPlugin {
       Def.task {
         val sourceFile = sentryLogbackSourcePath.value
         val destName = sentryLogbackConfigName.value
-        val destFile = (resourceManaged in Compile).value / "sentry-logback" / destName
+        val destFile = (resourceManaged in Compile).value / "sentry" / destName
 
         try {
           val content = LogbackConfig.addSentrySettings(sourceFile)
@@ -141,6 +149,31 @@ object SentryPlugin extends AutoPlugin {
     }
   }
 
+  private def defaultProperties = Def.task[Map[String, String]] {
+    Map(
+      "release" -> sentryAppRelease.value,
+      "dist" -> sentryAppDist.value,
+      "stacktrace.app.packages" -> sentryAppPackages.value.mkString(",")
+    )
+  }
+
+  private def generatePropertiesFile = Def.task[Seq[File]] {
+    val destFile = (resourceManaged in Compile).value / "sentry" / "sentry.properties"
+    val props = sentryProperties.value.foldLeft(new Properties) { case (p, (key, value)) =>
+      p.put(key, value)
+      p
+    }
+    val projectName = name.value
+
+    try {
+      IO.write(props, s"Sentry Settings for $projectName", destFile)
+    } catch { case e: Exception =>
+      sys.error(s"Failed to generate Sentry properties file: ${e}")
+    }
+
+    Seq(destFile)
+  }
+
   private def packagingSettings = Seq(
     mappings in Universal ++= agentMappings.value,
     bashScriptExtraDefines ++= sentryJavaAgentBashDefines.value
@@ -151,7 +184,13 @@ object SentryPlugin extends AutoPlugin {
   override def projectSettings = {
     Seq(
       sentryVersion := "1.7.4",
+      sentryAppRelease := version.value,
+      sentryAppDist := "jvm",
+      sentryAppPackages := Seq(organization.value),
+      sentryExtraProperties := Map.empty,
+
       sentryJavaAgentPackageDir := s"sentry-agent",
+
       sentryLogbackEnabled := false,
       sentryLogbackConfigName := "logback.xml",
       sentryLogbackSource := None,
@@ -160,7 +199,11 @@ object SentryPlugin extends AutoPlugin {
       javaOptions in run ++= agentOptions.value,
       javaOptions in Test ++= agentOptions.value,
       resourceGenerators in Compile += generateLogbackConfig.taskValue,
+      resourceGenerators in Compile += generatePropertiesFile.taskValue,
 
+      sentryProperties := {
+        defaultProperties.value ++ sentryExtraProperties.value
+      },
       sentryJavaAgentPaths := {
         val version = sentryVersion.value
         val destDir = (resourceManaged in Compile).value / "sentry-agent"
