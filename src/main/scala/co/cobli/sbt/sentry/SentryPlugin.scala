@@ -92,9 +92,9 @@ object SentryPlugin extends AutoPlugin {
     Seq(s"""
       |case "$$(uname -m)" in
       |x86_64)
-      |    addJava "-agentpath:$${app_home}/${dir}/${agentFileName("x86_64")}" ;;
+      |    addJava "-agentpath:$${app_home}/../${dir}/${agentFileName("x86_64")}" ;;
       |*86)
-      |    addJava "-agentpath:$${app_home}/${dir}/${agentFileName("i686")}" ;;
+      |    addJava "-agentpath:$${app_home}/../${dir}/${agentFileName("i686")}" ;;
       |*)
       |    echo "Warning: only x86 and x86_64 archs. are supported by the Sentry Java agent, ignoring it" >&2
       |esac
