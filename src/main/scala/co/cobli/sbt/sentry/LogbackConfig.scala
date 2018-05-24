@@ -23,7 +23,7 @@ object LogbackConfig {
   private def addSentryAppenderRule = new RewriteRule {
     override def transform(n: Node): Seq[Node] = n match {
       case elem: Elem if elem.label == "configuration" =>
-        elem.copy(child = elem.child ++ sentryAppender)
+        elem.copy(child = sentryAppender ++ elem.child)
       case n => n
     }
   }
