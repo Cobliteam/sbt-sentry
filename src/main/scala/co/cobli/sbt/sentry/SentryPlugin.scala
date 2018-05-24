@@ -77,7 +77,7 @@ object SentryPlugin extends AutoPlugin {
     }.toMap
   }
 
-  /* The following are based on code from the sbt-javagent plugin */
+  /* The following 3 functions are based on code from the sbt-javagent plugin */
 
   private def normalizePath(path: String, expected: Char, actual: Char = File.separatorChar): String = {
     if (actual == expected) path else path.replace(actual, expected)
@@ -183,7 +183,7 @@ object SentryPlugin extends AutoPlugin {
       sentryLogbackEnabled := false,
       sentryLogbackConfigName := "logback.xml",
       sentryLogbackSource := {
-        val curResources = (resources in Compile).value
+        val curResources = (unmanagedResources in Compile).value
         curResources.filter(_.getName == "logback.xml").headOption.getOrElse {
           sys.error("Failed to find logback.xml in classpath. Specify the path manually by setting `sentryLogbackSource`.")
         }
