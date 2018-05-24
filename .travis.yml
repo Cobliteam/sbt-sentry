@@ -16,7 +16,7 @@ jobs:
   include:
     - stage: deploy
       script: "sbt '^^0.13.17' publish '^^1.1.2' publish"
-      if: tag IS present AND repo = Cobliteam/sbt-sentry
+      if: repo = Cobliteam/sbt-sentry
 
 before_cache:
   - find $HOME/.ivy2 -name "ivydata-*.properties" -print -delete
