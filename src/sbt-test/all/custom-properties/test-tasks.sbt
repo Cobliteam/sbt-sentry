@@ -18,7 +18,5 @@ checkSentryProperties := {
     "custom-prop-2" -> "2"
   )
 
-  if (actualMap != expectedMap) {
-    sys.error(s"Sentry properties differ from expected: $actualMap != $expectedMap")
-  }
+  assert (actualMap == expectedMap, s"Sentry properties must be correctly generated: $actualMap != $expectedMap")
 }

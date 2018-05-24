@@ -9,9 +9,8 @@ checkSentryScript := {
   val actualArchs = agentPattern.findAllMatchIn(scriptContent).map(_.group(1)).toSet
   val expectedArchs = Set("i686", "x86_64")
 
-  if (actualArchs != expectedArchs) {
-    sys.error(s"Missing Java options `-agentpath` line for some architectures: ${actualArchs} != ${expectedArchs}")
-  }
+  assert(actualArchs == expectedArchs,
+         s"Java `-agentpath` option must be present for all architectures: $actualArchs != $expectedArchs")
 }
 
 val checkLogbackConfig = taskKey[Unit]("")
@@ -20,16 +19,11 @@ checkLogbackConfig := {
   val configName = sentryLogbackConfigName.value
   val configFile = resourcesFiles.filter(_.getName == configName).head
   val configContent = IO.read(configFile)
-  val appenderPattern = raw"""<appender\s+name="Sentry"\s+class="io\.sentry\.logback\.SentryAppender">""".r.unanchored
-  val appenderRefPattern = raw"""<appender-ref\s+ref="Sentry"/>""".r.unanchored
+  val appenderPattern = raw"""<appender\s+name="Sentry"\s+class="io\.sentry\.logback\.SentryAppender">""".r
+  val appenderRefPattern = raw"""<appender-ref\s+ref="Sentry"/>""".r
 
-  configContent match {
-    case appenderPattern(_*) =>
-    case _ => sys.error("Missing Sentry appender in Logback config")
-  }
-
-  configContent match {
-    case appenderRefPattern(_*) =>
-    case _ => sys.error("Missing Sentry appender ref in Logback config")
-  }
+  assert(appenderPattern.findFirstIn(configContent).isDefined,
+         "Sentry appender must be present in Logback config")
+  assert(appenderRefPattern.findFirstIn(configContent).isDefined,
+         "Sentry appender must be reference in root logger in Logback config")
 }
