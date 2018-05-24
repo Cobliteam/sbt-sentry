@@ -27,6 +27,7 @@ object SentryPlugin extends AutoPlugin {
     val sentryLogbackEnabled = settingKey[Boolean]("Sentry: automatically modify Logback config in the classpath")
     val sentryLogbackConfigName = settingKey[String]("Sentry: name of the new Logback config to generate")
     val sentryLogbackSource = taskKey[File]("Sentry: Logback config file to use as a base.")
+    val sentryLogbackLogLevel = settingKey[String]("Sentry: minimum log level to report errors")
 
     val sentryProperties = taskKey[Map[String, String]]("")
     val sentryJavaAgentPaths = taskKey[Map[String, File]]("")
@@ -127,9 +128,10 @@ object SentryPlugin extends AutoPlugin {
   private def generateLogbackConfig = Def.task[File] {
     val sourceFile = sentryLogbackSource.value
     val destFile = resourceManaged.value / "sentry" / sentryLogbackConfigName.value
+    val logLevel = sentryLogbackLogLevel.value
 
     try {
-      val content = LogbackConfig.addSentrySettings(sourceFile)
+      val content = new LogbackConfig(logLevel).addSentrySettings(sourceFile)
       IO.write(destFile, content)
     } catch { case e: Exception =>
       sys.error(s"Failed to generate Sentry Logback config: ${e}")
@@ -188,6 +190,7 @@ object SentryPlugin extends AutoPlugin {
           sys.error("Failed to find logback.xml in classpath. Specify the path manually by setting `sentryLogbackSource`.")
         }
       },
+      sentryLogbackLogLevel := "WARN",
 
       libraryDependencies += "io.sentry" % "sentry" % sentryVersion.value,
       libraryDependencies ++= {
