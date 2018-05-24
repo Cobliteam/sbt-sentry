@@ -5,13 +5,13 @@ import scala.xml.transform._
 
 import java.io.File
 
-object LogbackConfig {
+class LogbackConfig(val level: String) {
   private val sentryAppenderName = "Sentry"
 
   private def sentryAppender: Elem = {
     <appender name={ sentryAppenderName } class="io.sentry.logback.SentryAppender">
       <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-        <level>WARN</level>
+        <level>{ level }</level>
       </filter>
     </appender>
   }
