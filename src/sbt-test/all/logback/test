@@ -2,5 +2,6 @@
 $ exec unzip -o target/universal/logback-0.1.zip -d target/universal/
 $ exists target/universal/logback-0.1/sentry-agent/libsentry_agent_linux-i686.so
 $ exists target/universal/logback-0.1/sentry-agent/libsentry_agent_linux-x86_64.so
+> checkDeps
 > checkSentryScript
 > checkLogbackConfig

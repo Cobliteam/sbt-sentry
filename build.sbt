@@ -23,7 +23,6 @@ libraryDependencies ++= {
 
 enablePlugins(GitVersioning)
 git.useGitDescribe := true
-git.uncommittedSignifier := None
 git.gitTagToVersionNumber := {
   case v if v.startsWith("v") => v.drop(1) match {
     case VersionNumber(Seq(x, y, z), Seq(), Seq()) => Some(s"$x.$y.$z")

@@ -189,7 +189,14 @@ object SentryPlugin extends AutoPlugin {
         }
       },
 
-      libraryDependencies += "io.sentry" % "sentry-all" % sentryVersion.value,
+      libraryDependencies += "io.sentry" % "sentry" % sentryVersion.value,
+      libraryDependencies ++= {
+        if (sentryLogbackEnabled.value) {
+          Seq("io.sentry" % "sentry-logback" % sentryVersion.value)
+        } else {
+          Seq.empty
+        }
+      },
 
       resourceGenerators in Compile += Def.taskDyn[Seq[File]] {
         if (sentryLogbackEnabled.value) {
