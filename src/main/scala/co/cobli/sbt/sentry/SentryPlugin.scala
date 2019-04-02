@@ -174,7 +174,7 @@ object SentryPlugin extends AutoPlugin {
 
   override def projectSettings = {
     Seq(
-      sentryVersion := "1.7.4",
+      sentryVersion := "1.7.22",
       sentryAppRelease := version.value,
       sentryAppDist := "jvm",
       sentryAppPackages := Seq(organization.value),
