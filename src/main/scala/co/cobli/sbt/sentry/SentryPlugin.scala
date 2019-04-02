@@ -22,6 +22,7 @@ object SentryPlugin extends AutoPlugin {
     val sentryAppPackages = settingKey[Seq[String]]("Sentry: list of app packages to store in properties file")
     val sentryExtraProperties = settingKey[Map[String ,String]]("Sentry: values to add to sentry.properties resource")
 
+    val sentryJavaAgentEnabled = settingKey[Boolean]("Sentry: enable Java agent")
     val sentryJavaAgentPackageDir = settingKey[String]("Sentry: directory to store the Java agent files when packaging")
 
     val sentryLogbackEnabled = settingKey[Boolean]("Sentry: automatically modify Logback config in the classpath")
@@ -166,8 +167,21 @@ object SentryPlugin extends AutoPlugin {
   }
 
   private def packagingSettings = Seq(
-    mappings in Universal ++= agentMappings.value,
-    bashScriptExtraDefines ++= sentryJavaAgentBashDefines.value
+    mappings in Universal ++= Def.taskDyn {
+      if (sentryJavaAgentEnabled.value) {
+        agentMappings
+      } else {
+        Def.task(Seq.empty[(File,String)])
+      }
+    }.value,
+    bashScriptExtraDefines ++= {
+      val defines = sentryJavaAgentBashDefines.value
+      if (sentryJavaAgentEnabled.value) {
+        defines
+      } else {
+        Seq.empty
+      }
+    }
   )
 
   override def requires = BashStartScriptPlugin
@@ -180,6 +194,7 @@ object SentryPlugin extends AutoPlugin {
       sentryAppPackages := Seq(organization.value),
       sentryExtraProperties := Map.empty,
 
+      sentryJavaAgentEnabled := true,
       sentryJavaAgentPackageDir := s"sentry-agent",
 
       sentryLogbackEnabled := false,
@@ -215,11 +230,17 @@ object SentryPlugin extends AutoPlugin {
       sentryProperties := {
         defaultProperties.value ++ sentryExtraProperties.value
       },
-      sentryJavaAgentPaths := {
-        val version = sentryVersion.value
-        val destDir = (resourceManaged in Compile).value / "sentry"
-        downloadAgents(version, destDir)
-      },
+      sentryJavaAgentPaths := Def.taskDyn {
+        if (sentryJavaAgentEnabled.value) {
+          Def.task {
+            val version = sentryVersion.value
+            val destDir = (resourceManaged in Compile).value / "sentry"
+            downloadAgents(version, destDir)
+          }
+        } else {
+          Def.task(Map.empty[String, File])
+        }
+      }.value,
       sentryJavaAgentBashDefines := {
         val pkgDir = sentryJavaAgentPackageDir.value
         agentBashScriptDefines(pkgDir)
