@@ -11,6 +11,14 @@ crossSbtVersions := Vector("0.13.17", "1.1.2")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.4" % "provided")
 
+publishArtifact in (Compile, packageDoc) := false
+publishArtifact in (Compile, packageSrc) := true
+publishArtifact in (Test, packageDoc) := false
+publishArtifact in (Test, packageSrc) := true
+publishArtifact in (Test, packageBin) := true
+
+publishTo := Some("Cobli S3 Repo" at "s3://repo.cobli.co")
+
 libraryDependencies ++= {
   (pluginCrossBuild / sbtVersion).value match {
     case v if v.startsWith("1.") =>
@@ -30,10 +38,6 @@ git.gitTagToVersionNumber := {
     case _ => None
   }
 }
-
-publishMavenStyle := true
-bintrayOrganization := Some("cobli")
-bintrayRepository := "sbt-plugins"
 
 scriptedDependencies := (ScriptedConf / publishLocal).value
 scriptedLaunchOpts += "-Dplugin.version=" + version.value
