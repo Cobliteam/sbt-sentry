@@ -38,7 +38,7 @@ jobs:
       - multi_file_hash_cache/restore:
           <<: *multi_hash_args
       - run:
-          name: Create package
+          name: Create and publish package to S3
           command: sbt ++$SCALA_VERSION publish
       - save_cache:
           paths:
@@ -53,5 +53,5 @@ workflows:
       - publish:
           name: publish_to_s3
           context: circleci-aws-profile
-          # filters:
-          #   <<: *release_filters
+          filters:
+            <<: *release_filters
