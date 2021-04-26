@@ -26,29 +26,6 @@ orbs:
   multi_file_hash_cache: cobli/multi-file-hash-cache@0.0.2
 
 jobs:
-  ### Test
-  test:
-    docker:
-      - image: circleci/openjdk:8u222-jdk-stretch
-    environment:
-      TERM: xterm-256color
-      SCALA_VERSION: *scala_version
-    steps:
-      - checkout
-      - *ssh_setup
-      - multi_file_hash_cache/restore:
-          <<: *multi_hash_args
-      - run:
-          name: Test
-          command: |
-            cat /dev/null | sbt ++$SCALA_VERSION test
-      - save_cache:
-          paths:
-            - ~/.ivy2/cache
-            - ~/.sbt/boot
-            - ~/.cache/coursier
-          key: *cache_name
-
   publish:
     docker:
       - image: circleci/openjdk:8u222-jdk-stretch
@@ -63,17 +40,18 @@ jobs:
       - run:
           name: Create package
           command: sbt ++$SCALA_VERSION publish
+      - save_cache:
+          paths:
+            - ~/.ivy2/cache
+            - ~/.sbt/boot
+            - ~/.cache/coursier
+          key: *cache_name
 
 workflows:
-  test_and_publish:
+  publish:
     jobs:
-      - test:
-          context: circleci-aws-profile
-
       - publish:
           name: publish_to_s3
           context: circleci-aws-profile
-          requires:
-            - test
           # filters:
           #   <<: *release_filters
