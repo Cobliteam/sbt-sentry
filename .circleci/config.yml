@@ -1,0 +1,79 @@
+version: 2.1
+
+definitions:
+  release_filters: &release_filters
+    branches:
+      only: master
+    tags:
+      ignore: /.*/
+  multi_hash_args: &multi_hash_args
+    in-files: "build.sbt project/build.properties project/plugins.sbt"
+    out-file: /tmp/sbt-dependencies-checksum
+    cache-prefix: sbt-sentry
+  cache_name: &cache_name sbt-sentry-{{ checksum "/tmp/sbt-dependencies-checksum" }}-{{ .Branch }}
+  aws_auth: &aws_auth
+    aws_access_key_id: $AWS_ACCESS_KEY_ID
+    aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
+  scala_version: &scala_version 2.12.6
+  step_aliases:
+    # Add ssh key used to clone cobli-sbt-settings
+    - &ssh_setup
+      add_ssh_keys:
+        fingerprints:
+          - "fb:0d:89:50:16:ec:11:76:4b:0e:71:7e:26:2f:13:02"
+
+orbs:
+  multi_file_hash_cache: cobli/multi-file-hash-cache@0.0.2
+
+jobs:
+  ### Test
+  test:
+    docker:
+      - image: circleci/openjdk:8u222-jdk-stretch
+    environment:
+      TERM: xterm-256color
+      SCALA_VERSION: *scala_version
+    steps:
+      - checkout
+      - *ssh_setup
+      - multi_file_hash_cache/restore:
+          <<: *multi_hash_args
+      - run:
+          name: Test
+          command: |
+            cat /dev/null | sbt ++$SCALA_VERSION test
+      - save_cache:
+          paths:
+            - ~/.ivy2/cache
+            - ~/.sbt/boot
+            - ~/.cache/coursier
+          key: *cache_name
+
+  publish:
+    docker:
+      - image: circleci/openjdk:8u222-jdk-stretch
+    environment:
+      TERM: xterm-256color
+      SCALA_VERSION: *scala_version
+    steps:
+      - checkout
+      - *ssh_setup
+      - multi_file_hash_cache/restore:
+          <<: *multi_hash_args
+      - run:
+          name: Create package
+          command: sbt ++$SCALA_VERSION publish
+
+workflows:
+  test_and_publish:
+    jobs:
+      - test:
+          context: circleci-aws-profile
+
+      - publish:
+          name: publish_to_s3
+          context: circleci-aws-profile
+          requires:
+            - test
+          # filters:
+          #   <<: *release_filters
