@@ -1,7 +1,7 @@
 import scala.sys.process._
 
 lazy val build = (project in file(".")).dependsOn(ProjectRef(cobliSbtPlugin, "cobli-sbt-settings"))
-lazy val cobliSbtPluginVersion = "3.0"
+lazy val cobliSbtPluginVersion = "3.1"
 lazy val cobliSbtPlugin = {
   val localPath = sys.props.get("cobli.sbt-settings.path").orElse(sys.env.get("COBLI_SBT_SETTINGS_PATH"))
   localPath.map { path =>
