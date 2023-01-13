@@ -20,7 +20,7 @@ definitions:
     - &ssh_setup
       add_ssh_keys:
         fingerprints:
-          - "fb:0d:89:50:16:ec:11:76:4b:0e:71:7e:26:2f:13:02"
+          - "c7:17:f9:43:b3:5b:49:42:74:dd:f5:8a:74:d3:98:e3"
 
 orbs:
   multi_file_hash_cache: cobli/multi-file-hash-cache@0.0.2
