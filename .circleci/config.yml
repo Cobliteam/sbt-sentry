@@ -11,9 +11,6 @@ definitions:
     out-file: /tmp/sbt-dependencies-checksum
     cache-prefix: sbt-sentry
   cache_name: &cache_name sbt-sentry-{{ checksum "/tmp/sbt-dependencies-checksum" }}-{{ .Branch }}
-  aws_auth: &aws_auth
-    aws_access_key_id: $AWS_ACCESS_KEY_ID
-    aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
   scala_version: &scala_version 2.12.6
   step_aliases:
     # Add ssh key used to clone cobli-sbt-settings
@@ -21,9 +18,16 @@ definitions:
       add_ssh_keys:
         fingerprints:
           - "c7:17:f9:43:b3:5b:49:42:74:dd:f5:8a:74:d3:98:e3"
+    # cobli-sbt-settings reads s3://repo.cobli.co through the cobli-tech profile first
+    - &maven_repo_auth
+      aws_cli/setup:
+        role_arn: arn:aws:iam::911383825788:role/circleci-maven-repo
+        profile_name: cobli-tech
+        set_aws_env_vars: false
 
 orbs:
   multi_file_hash_cache: cobli/multi-file-hash-cache@0.0.2
+  aws_cli: circleci/aws-cli@5.4.1
 
 jobs:
   publish:
@@ -37,6 +41,7 @@ jobs:
       - *ssh_setup
       - multi_file_hash_cache/restore:
           <<: *multi_hash_args
+      - *maven_repo_auth
       - run:
           name: Create and publish package to S3
           command: sbt ++$SCALA_VERSION publish
@@ -52,6 +57,6 @@ workflows:
     jobs:
       - publish:
           name: publish_to_s3
-          context: circleci-aws-profile
+          context: circleci-aws-oidc
           filters:
             <<: *release_filters
